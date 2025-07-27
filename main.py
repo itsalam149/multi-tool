@@ -13,16 +13,27 @@ import qrcode
 import os
 import io
 import shutil
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Multi-Service API",
-    description="APIs for video download, QR generation, TTS, and background removal"
+    description="APIs for video download, QR generation, TTS, and background removal",
+    version="1.0.0"
 )
+
+# -------------------- CONFIGURATION --------------------
+# Get environment variables
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+DEBUG = ENVIRONMENT == "development"
 
 # -------------------- MIDDLEWARE --------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"] if DEBUG else ["https://your-domain.com"],  # Restrict in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -49,26 +60,39 @@ class TextToSpeechRequest(BaseModel):
 
 # -------------------- ENDPOINTS --------------------
 
-# 1. Serve index.html at "/"
+# 1. Health check (important for hosting platforms)
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "version": "1.0.0"}
+
+# 2. Root endpoint
 @app.get("/", response_class=HTMLResponse)
 async def serve_index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-# 2. Video download
+# 3. Video download with better error handling
 @app.post("/api/download-video")
 async def download_video(request: VideoDownloadRequest):
     try:
+        logger.info(f"Processing video download for URL: {request.url}")
+        
         with tempfile.TemporaryDirectory() as tmpdir:
             ydl_opts = {
                 'format': request.quality,
                 'outtmpl': os.path.join(tmpdir, '%(title).100s.%(ext)s'),
                 'noplaylist': True,
+                'no_warnings': True,  # Reduce noise in logs
             }
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(request.url, download=True)
-                downloaded_path = ydl.prepare_filename(info)
+                try:
+                    info = ydl.extract_info(request.url, download=True)
+                    downloaded_path = ydl.prepare_filename(info)
+                except Exception as e:
+                    logger.error(f"yt-dlp error: {str(e)}")
+                    raise HTTPException(status_code=400, detail=f"Failed to download video: {str(e)}")
 
+            # Create temporary file for response
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(downloaded_path)[1])
             temp_file.close()
             shutil.copyfile(downloaded_path, temp_file.name)
@@ -76,17 +100,25 @@ async def download_video(request: VideoDownloadRequest):
         return FileResponse(
             temp_file.name,
             media_type='application/octet-stream',
-            filename=os.path.basename(temp_file.name),
-            headers={"Content-Disposition": f"attachment; filename={os.path.basename(temp_file.name)}"}
+            filename=f"video_{info.get('title', 'download')[:50]}.{info.get('ext', 'mp4')}",
+            headers={"Content-Disposition": f"attachment; filename=video_download.{info.get('ext', 'mp4')}"}
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error downloading video: {str(e)}")
+        logger.error(f"Unexpected error in video download: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error occurred")
 
-# 3. QR Code generation
+# 4. QR Code generation
 @app.post("/api/generate-qr")
 async def generate_qr_code(request: QRCodeRequest):
     try:
+        logger.info(f"Generating QR code for text length: {len(request.text)}")
+        
+        if len(request.text) > 2000:
+            raise HTTPException(status_code=400, detail="Text too long (max 2000 characters)")
+        
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -107,13 +139,24 @@ async def generate_qr_code(request: QRCodeRequest):
             headers={"Content-Disposition": "attachment; filename=qrcode.png"}
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error generating QR code: {str(e)}")
+        logger.error(f"Error generating QR code: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to generate QR code")
 
-# 4. Text to speech
+# 5. Text to speech
 @app.post("/api/text-to-speech")
 async def text_to_speech(request: TextToSpeechRequest):
     try:
+        logger.info(f"Converting text to speech, length: {len(request.text)}")
+        
+        if len(request.text) > 5000:
+            raise HTTPException(status_code=400, detail="Text too long (max 5000 characters)")
+        
+        if not request.text.strip():
+            raise HTTPException(status_code=400, detail="Text cannot be empty")
+        
         tts = gTTS(text=request.text, lang=request.language, slow=request.slow)
 
         with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
@@ -127,18 +170,27 @@ async def text_to_speech(request: TextToSpeechRequest):
             headers={"Content-Disposition": "attachment; filename=speech.mp3"}
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error generating speech: {str(e)}")
+        logger.error(f"Error generating speech: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to generate speech")
 
-# 5. Background removal
+# 6. Background removal
 @app.post("/api/remove-background")
 async def remove_background(file: UploadFile = File(...)):
     try:
-        if not file.content_type.startswith("image/"):
+        logger.info(f"Processing background removal for file: {file.filename}")
+        
+        if not file.content_type or not file.content_type.startswith("image/"):
             raise HTTPException(status_code=400, detail="Only image files are allowed")
-
-        image_data = await file.read()
-        output_data = remove(image_data)
+        
+        # Check file size (10MB limit)
+        contents = await file.read()
+        if len(contents) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+        
+        output_data = remove(contents)
 
         return StreamingResponse(
             io.BytesIO(output_data),
@@ -146,17 +198,27 @@ async def remove_background(file: UploadFile = File(...)):
             headers={"Content-Disposition": "attachment; filename=no_bg_image.png"}
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error removing background: {str(e)}")
+        logger.error(f"Error removing background: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to remove background")
 
-# 6. Health check
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
+# Error handlers
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc):
+    return templates.TemplateResponse("index.html", {"request": request}, status_code=404)
 
-# -------------------- RUN LOCAL --------------------
+# -------------------- RUN APPLICATION --------------------
 if __name__ == "__main__":
     import uvicorn
-    import os
     port = int(os.environ.get("PORT", 10000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    host = "0.0.0.0"
+    
+    logger.info(f"Starting server on {host}:{port}")
+    uvicorn.run(
+        app, 
+        host=host, 
+        port=port,
+        log_level="info" if DEBUG else "warning"
+    )
