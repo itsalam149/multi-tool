@@ -52,24 +52,6 @@ Visit the live application: [https://multi-tool-yp6r.onrender.com](https://multi
 5. **Open your browser**
    Navigate to `http://localhost:10000`
 
-### Deploy to Render.com
-
-1. **Fork this repository** to your GitHub account
-
-2. **Connect to Render**
-   - Go to [Render.com](https://render.com)
-   - Connect your GitHub account
-   - Select this repository
-
-3. **Configure deployment**
-   - Service Type: Web Service
-   - Build Command: (leave empty)
-   - Start Command: `uvicorn main:app --host 0.0.0.0 --port 10000`
-
-4. **Deploy**
-   - Click "Create Web Service"
-   - Your app will be live at `https://your-app-name.onrender.com`
-
 ## 📋 API Endpoints
 
 | Endpoint | Method | Description |
