@@ -1,6 +1,8 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
+from fastapi.responses import FileResponse, StreamingResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Optional
 from gtts import gTTS
@@ -17,7 +19,7 @@ app = FastAPI(
     description="APIs for video download, QR generation, TTS, and background removal"
 )
 
-# CORS setup
+# -------------------- MIDDLEWARE --------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,6 +27,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# -------------------- STATIC & TEMPLATES --------------------
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
 # -------------------- MODELS --------------------
 class VideoDownloadRequest(BaseModel):
@@ -43,7 +49,12 @@ class TextToSpeechRequest(BaseModel):
 
 # -------------------- ENDPOINTS --------------------
 
-# 1. VIDEO DOWNLOAD
+# 1. Serve index.html at "/"
+@app.get("/", response_class=HTMLResponse)
+async def serve_index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+# 2. Video download
 @app.post("/api/download-video")
 async def download_video(request: VideoDownloadRequest):
     try:
@@ -72,8 +83,7 @@ async def download_video(request: VideoDownloadRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error downloading video: {str(e)}")
 
-
-# 2. GENERATE QR CODE
+# 3. QR Code generation
 @app.post("/api/generate-qr")
 async def generate_qr_code(request: QRCodeRequest):
     try:
@@ -100,7 +110,7 @@ async def generate_qr_code(request: QRCodeRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error generating QR code: {str(e)}")
 
-# 3. TEXT TO SPEECH
+# 4. Text to speech
 @app.post("/api/text-to-speech")
 async def text_to_speech(request: TextToSpeechRequest):
     try:
@@ -120,7 +130,7 @@ async def text_to_speech(request: TextToSpeechRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error generating speech: {str(e)}")
 
-# 4. REMOVE BACKGROUND FROM IMAGE
+# 5. Background removal
 @app.post("/api/remove-background")
 async def remove_background(file: UploadFile = File(...)):
     try:
@@ -139,27 +149,14 @@ async def remove_background(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error removing background: {str(e)}")
 
-# 5. HEALTH CHECKS
-@app.get("/")
-async def root():
-    return {
-        "message": "Multi-Service API is running!",
-        "services": [
-            "Video Download: POST /api/download-video",
-            "QR Code Generation: POST /api/generate-qr",
-            "Text to Speech: POST /api/text-to-speech",
-            "Background Removal: POST /api/remove-background"
-        ]
-    }
-
+# 6. Health check
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
 
-# -------------------- MAIN --------------------
+# -------------------- RUN LOCAL --------------------
 if __name__ == "__main__":
     import uvicorn
     import os
-
-    port = int(os.environ.get("PORT", 10000))  # Use Render's dynamic port or default to 10000 locally
+    port = int(os.environ.get("PORT", 10000))
     uvicorn.run(app, host="0.0.0.0", port=port)
