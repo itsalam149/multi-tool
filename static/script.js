@@ -10,7 +10,6 @@ const getApiBase = () => {
 
 const API_BASE = getApiBase();
 
-// Rest of your existing JavaScript code remains the same...
 // Global state management
 const state = {
     activeModal: null,
@@ -21,8 +20,6 @@ const state = {
 // Initialize application when DOM is loaded
 document.addEventListener('DOMContentLoaded', function () {
     initializeApp();
-
-    // Add connection test
     testConnection();
 });
 
@@ -85,7 +82,7 @@ async function makeApiCall(endpoint, options = {}) {
     }
 }
 
-// Updated service functions with better error handling
+// Service functions
 async function processVideo() {
     const url = document.getElementById('video-url').value.trim();
     const qualityRadio = document.querySelector('input[name="quality"]:checked');
@@ -369,5 +366,329 @@ async function removeBackground() {
     }
 }
 
-// Include all your existing utility functions below...
-// (The rest of your original script.js code remains unchanged)
+// Utility functions
+function scrollToServices() {
+    document.getElementById('services').scrollIntoView({ behavior: 'smooth' });
+}
+
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    modal.classList.add('active');
+    state.activeModal = modalId;
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    modal.classList.remove('active');
+    state.activeModal = null;
+    document.body.style.overflow = '';
+}
+
+function showLoading(serviceId) {
+    const overlay = document.getElementById(`${serviceId}-loading`);
+    overlay.classList.add('active');
+}
+
+function hideLoading(serviceId) {
+    const overlay = document.getElementById(`${serviceId}-loading`);
+    overlay.classList.remove('active');
+}
+
+function showResult(serviceId, content, type = 'success') {
+    const result = document.getElementById(`${serviceId}-result`);
+    result.innerHTML = content;
+    result.className = `result-section active ${type}`;
+}
+
+function hideResult(serviceId) {
+    const result = document.getElementById(`${serviceId}-result`);
+    result.classList.remove('active');
+}
+
+function downloadBlob(url, filename) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container') || createToastContainer();
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+        <div class="toast-header">
+            <span class="toast-title">${type.charAt(0).toUpperCase() + type.slice(1)}</span>
+            <button class="toast-close" onclick="this.parentElement.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="toast-message">${message}</div>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+    return container;
+}
+
+function createParticles() {
+    const container = document.getElementById('particles');
+    if (!container) return;
+
+    for (let i = 0; i < 50; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.top = Math.random() * 100 + '%';
+        particle.style.animationDelay = Math.random() * 6 + 's';
+        particle.style.animationDuration = (Math.random() * 3 + 3) + 's';
+        container.appendChild(particle);
+    }
+}
+
+function validateUrl(input) {
+    try {
+        new URL(input.value);
+        return true;
+    } catch {
+        showToast('Please enter a valid URL', 'error');
+        return false;
+    }
+}
+
+function getLanguageName(code) {
+    const languages = {
+        'en': 'English (US)',
+        'en-gb': 'English (UK)',
+        'es': 'Spanish',
+        'fr': 'French',
+        'de': 'German',
+        'it': 'Italian',
+        'pt': 'Portuguese',
+        'ja': 'Japanese',
+        'ko': 'Korean',
+        'zh': 'Chinese'
+    };
+    return languages[code] || 'Unknown';
+}
+
+function setupFileUpload() {
+    const fileInput = document.getElementById('bg-file');
+    const fileUpload = document.getElementById('file-upload');
+
+    if (fileUpload && fileInput) {
+        fileUpload.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileSelect);
+
+        // Drag and drop functionality
+        fileUpload.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUpload.style.borderColor = 'var(--primary)';
+            fileUpload.style.background = 'var(--surface-lighter)';
+        });
+
+        fileUpload.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            fileUpload.style.borderColor = 'var(--border-light)';
+            fileUpload.style.background = '';
+        });
+
+        fileUpload.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUpload.style.borderColor = 'var(--border-light)';
+            fileUpload.style.background = '';
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect({ target: { files } });
+            }
+        });
+    }
+}
+
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        showToast('Please select an image file', 'error');
+        return;
+    }
+
+    // Validate file size (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        showToast('File size must be less than 10MB', 'error');
+        return;
+    }
+
+    const preview = document.getElementById('file-preview');
+    const img = document.getElementById('preview-img');
+    const name = document.getElementById('preview-name');
+    const size = document.getElementById('preview-size');
+
+    if (preview && img && name && size) {
+        img.src = URL.createObjectURL(file);
+        name.textContent = file.name;
+        size.textContent = `${(file.size / 1024 / 1024).toFixed(2)} MB`;
+        preview.style.display = 'flex';
+    }
+}
+
+function removeFile() {
+    const fileInput = document.getElementById('bg-file');
+    const preview = document.getElementById('file-preview');
+    const img = document.getElementById('preview-img');
+
+    if (fileInput) fileInput.value = '';
+    if (preview) preview.style.display = 'none';
+    if (img && img.src) {
+        URL.revokeObjectURL(img.src);
+        img.src = '';
+    }
+}
+
+function setupEventListeners() {
+    // Range input for QR size
+    const sizeRange = document.getElementById('qr-size');
+    const sizeDisplay = document.getElementById('size-display');
+    if (sizeRange && sizeDisplay) {
+        sizeRange.addEventListener('input', () => {
+            sizeDisplay.textContent = sizeRange.value;
+        });
+    }
+
+    // Character counter for TTS
+    const ttsText = document.getElementById('tts-text');
+    const charCount = document.querySelector('.char-count');
+    if (ttsText && charCount) {
+        ttsText.addEventListener('input', () => {
+            const count = ttsText.value.length;
+            charCount.textContent = `${count} / 5000 characters`;
+            if (count > 5000) {
+                charCount.style.color = 'var(--error)';
+            } else {
+                charCount.style.color = 'var(--text-muted)';
+            }
+        });
+    }
+
+    // Close modals with Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && state.activeModal) {
+            closeModal(state.activeModal);
+        }
+    });
+
+    // Mobile menu toggle
+    const mobileToggle = document.querySelector('.mobile-menu-toggle');
+    const navMenu = document.querySelector('.nav-menu');
+    if (mobileToggle && navMenu) {
+        mobileToggle.addEventListener('click', () => {
+            navMenu.classList.toggle('active');
+        });
+    }
+}
+
+function setupFormValidation() {
+    // Add real-time validation for forms
+    const forms = document.querySelectorAll('.service-form');
+    forms.forEach(form => {
+        const inputs = form.querySelectorAll('.form-input');
+        inputs.forEach(input => {
+            input.addEventListener('blur', validateInput);
+            input.addEventListener('input', clearValidationError);
+        });
+    });
+}
+
+function validateInput(event) {
+    const input = event.target;
+    const value = input.value.trim();
+
+    // Clear previous errors
+    clearValidationError(event);
+
+    // Validate based on input type and requirements
+    if (input.hasAttribute('required') && !value) {
+        showInputError(input, 'This field is required');
+        return false;
+    }
+
+    if (input.type === 'url' && value && !validateUrl(input)) {
+        showInputError(input, 'Please enter a valid URL');
+        return false;
+    }
+
+    return true;
+}
+
+function showInputError(input, message) {
+    input.style.borderColor = 'var(--error)';
+    let errorEl = input.parentNode.querySelector('.input-error');
+    if (!errorEl) {
+        errorEl = document.createElement('div');
+        errorEl.className = 'input-error';
+        errorEl.style.color = 'var(--error)';
+        errorEl.style.fontSize = '0.875rem';
+        errorEl.style.marginTop = '0.25rem';
+        input.parentNode.appendChild(errorEl);
+    }
+    errorEl.textContent = message;
+}
+
+function clearValidationError(event) {
+    const input = event.target;
+    input.style.borderColor = '';
+    const errorEl = input.parentNode.querySelector('.input-error');
+    if (errorEl) {
+        errorEl.remove();
+    }
+}
+
+function initializeToastSystem() {
+    // Toast system is initialized through showToast function
+    console.log('Toast system ready');
+}
+
+// Initialize smooth scrolling for navigation links
+document.addEventListener('DOMContentLoaded', () => {
+    const navLinks = document.querySelectorAll('a[href^="#"]');
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const target = document.querySelector(link.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    });
+});
+
+// Performance optimization: Debounce resize events
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        // Handle resize events here if needed
+        console.log('Window resized');
+    }, 250);
+});
+
+// Clean up object URLs on page unload
+window.addEventListener('beforeunload', () => {
+    // Clean up any remaining object URLs
+    const images = document.querySelectorAll('img[src^="blob:"]');
+    images.forEach(img => URL.revokeObjectURL(img.src));
+});
