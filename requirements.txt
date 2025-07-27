@@ -5,9 +5,7 @@ qrcode[pil]>=7.4.2
 gTTS>=2.4.0
 rembg>=2.0.55
 yt-dlp>=2023.11.16
-# Pillow is pulled by qrcode[pil], but keeping it is fine
 Pillow>=10.0.0
 pydantic>=2.7.3
-pydantic-settings>=2.7.3
-rembg
+pydantic-settings>=2.2.1
 onnxruntime>=1.16.0

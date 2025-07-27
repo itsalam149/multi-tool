@@ -58,7 +58,6 @@ async def download_video(request: VideoDownloadRequest):
                 info = ydl.extract_info(request.url, download=True)
                 downloaded_path = ydl.prepare_filename(info)
 
-            # Move to a temp file that survives after `with` block
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(downloaded_path)[1])
             temp_file.close()
             shutil.copyfile(downloaded_path, temp_file.name)
@@ -160,4 +159,7 @@ async def health_check():
 # -------------------- MAIN --------------------
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import os
+
+    port = int(os.environ.get("PORT", 10000))  # Use Render's dynamic port or default to 10000 locally
+    uvicorn.run(app, host="0.0.0.0", port=port)
