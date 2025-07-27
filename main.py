@@ -109,19 +109,11 @@ def download_video_sync(url: str, quality: str, tmpdir: str):
             # Memory and performance optimizations
             'http_chunk_size': 1048576,  # 1MB chunks
             'buffersize': 1048576,
-            # Instagram specific options
-            'cookiefile': None,
-            'nocheckcertificate': True,
         }
 
         # Add user agent to avoid blocking
         ydl_opts['http_headers'] = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-us,en;q=0.5',
-            'Accept-Encoding': 'gzip,deflate',
-            'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
-            'Connection': 'keep-alive',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -219,8 +211,8 @@ async def download_video(request: VideoDownloadRequest):
         if not request.url.startswith(('http://', 'https://')):
             raise HTTPException(status_code=400, detail="Invalid URL format")
         
-        # Check for common problematic URLs (removed instagram.com to allow downloads)
-        blocked_patterns = ['facebook.com', 'tiktok.com']
+        # Check for common problematic URLs
+        blocked_patterns = ['facebook.com', 'instagram.com', 'tiktok.com']
         if any(pattern in request.url.lower() for pattern in blocked_patterns):
             raise HTTPException(status_code=400, detail="This platform is not supported")
         
@@ -485,12 +477,12 @@ async def get_supported_sites():
     try:
         # Popular sites that work reliably
         popular_sites = [
-            "YouTube", "Vimeo", "Dailymotion", "Twitter", "Reddit", "Instagram",
+            "YouTube", "Vimeo", "Dailymotion", "Twitter", "Reddit",
             "Streamable", "Twitch Clips", "SoundCloud", "Bandcamp"
         ]
         return {
             "popular_sites": popular_sites,
-            "note": "Many video sites are supported. Some platforms like Facebook and TikTok may have restrictions."
+            "note": "Many video sites are supported. Some platforms like Facebook, Instagram, and TikTok may have restrictions."
         }
     except Exception as e:
         logger.error(f"Error getting supported sites: {str(e)}")
