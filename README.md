@@ -4,7 +4,7 @@ A comprehensive web application offering essential digital tools including video
 
 ## 🚀 Live Demo
 
-Visit the live application: [https://your-app-name.onrender.com](https://your-app-name.onrender.com)
+Visit the live application: [https://multi-tool-yp6r.onrender.com](https://multi-tool-yp6r.onrender.com)
 
 ## ✨ Features
 
@@ -129,4 +129,4 @@ Give a ⭐️ if this project helped you!
 
 ---
 
-**Built with ❤️ by [Your Name](https://github.com/itsalam149)**
+**Built with ❤️ by [Alam Siddiqui](https://github.com/itsalam149)**
