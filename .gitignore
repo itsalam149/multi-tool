@@ -1,0 +1,40 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+venv/
+
+# Node modules (in case using npm/yarn)
+node_modules/
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# VS Code settings
+.vscode/
+
+# Environment variables
+.env
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Optional: if using coverage tools or pytest
+htmlcov/
+.coverage
+coverage.xml
+.pytest_cache/
+
+# Optional: Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Optional: OS generated files
+Thumbs.db
+ehthumbs.db
